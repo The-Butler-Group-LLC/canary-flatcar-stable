@@ -3,7 +3,6 @@
 [![Dependabot Updates](https://github.com/butlergroup/canary-flatcar-stable/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/butlergroup/canary-flatcar-stable/actions/workflows/dependabot/dependabot-updates)
 [![OSV-Scanner](https://github.com/butlergroup/canary-flatcar-stable/actions/workflows/osv-scanner.yml/badge.svg)](https://github.com/butlergroup/canary-flatcar-stable/actions/workflows/osv-scanner.yml)
 [![Snyk Security-Monitored](https://img.shields.io/badge/Snyk%20Security-Monitored-purple)](https://app.snyk.io/share/784f6fef-6aaf-47ed-81ba-99e05b854665)
-[![trivy](https://github.com/butlergroup/canary-flatcar-stable/actions/workflows/trivy.yml/badge.svg)](https://github.com/butlergroup/canary-flatcar-stable/actions/workflows/trivy.yml)
 [![Scorecard supply-chain security](https://github.com/butlergroup/canary-flatcar-stable/actions/workflows/scorecard.yml/badge.svg)](https://github.com/butlergroup/canary-flatcar-stable/actions/workflows/scorecard.yml)
 [![Microsoft Defender For Devops](https://github.com/butlergroup/canary-flatcar-stable/actions/workflows/defender-for-devops.yml/badge.svg)](https://github.com/butlergroup/canary-flatcar-stable/actions/workflows/defender-for-devops.yml)
 [![Feature Requests](https://img.shields.io/github/issues/butlergroup/canary-flatcar-stable/feature-request.svg)](https://github.com/butlergroup/canary-flatcar-stable/issues?q=is%3Aopen+is%3Aissue+label%3Aenhancement)
