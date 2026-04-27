@@ -1,0 +1,134 @@
+name: Flatcar Runtime Scan
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # for actions/checkout to fetch code
+      security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
+      actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            qemu-system-x86 \
+            qemu-utils \
+            curl \
+            openssh-client \
+            netcat-openbsd \
+            ca-certificates
+
+      - name: Install Butane
+        run: |
+          curl -L -o butane \
+          https://github.com/coreos/butane/releases/latest/download/butane-x86_64-unknown-linux-gnu
+          chmod +x butane
+          sudo mv butane /usr/local/bin/
+
+      - name: Download Flatcar stable image
+        run: |
+          curl -L -o flatcar.img \
+          https://stable.release.flatcar-linux.net/amd64-usr/current/flatcar_production_qemu_image.img
+
+      - name: Generate SSH key
+        run: |
+          ssh-keygen -t rsa -b 4096 -f id_rsa -N ""
+
+      - name: Create Butane config
+        run: |
+          PUB_KEY=$(cat id_rsa.pub)
+          cat > config.bu <<EOF
+          variant: flatcar
+          version: 1.0.0
+
+          passwd:
+            users:
+              - name: core
+                ssh_authorized_keys:
+                  - ${PUB_KEY}
+          EOF
+
+      - name: Convert to Ignition
+        run: |
+          butane config.bu -o config.ign
+
+      - name: Start Flatcar VM
+        run: |
+          qemu-system-x86_64 \
+            -m 2048 \
+            -smp 2 \
+            -machine type=q35,accel=tcg \
+            -drive file=flatcar.img,if=virtio \
+            -boot c \
+            -netdev user,id=net0,hostfwd=tcp::2222-:22 \
+            -device virtio-net-pci,netdev=net0 \
+            -fw_cfg name=opt/com.coreos/config,file=config.ign \
+            -nographic > vm.log 2>&1 &
+
+          echo $! > vm.pid
+
+      - name: Wait for SSH to be fully ready
+        run: |
+          for i in {1..60}; do
+            if ssh -i id_rsa \
+              -o StrictHostKeyChecking=no \
+              -o ConnectTimeout=2 \
+              -o BatchMode=yes \
+              -p 2222 core@localhost "echo ready" >/dev/null 2>&1; then
+              echo "✅ SSH is fully ready"
+              exit 0
+            fi
+            echo "⏳ Waiting for SSH..."
+            sleep 2
+          done
+          echo "❌ SSH failed to become ready"
+          exit 1
+
+      - name: Dump VM logs
+        if: failure()
+        run: cat vm.log || true
+
+      - name: Run Trivy scan inside VM
+        run: |
+          ssh -i id_rsa -p 2222 core@localhost <<'EOF'
+          set -e
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
+          sudo ./bin/trivy rootfs / \
+            --scanners vuln,misconfig \
+            -f sarif \
+            -o /tmp/report.sarif
+          EOF
+
+      - name: Copy report from VM
+        run: |
+          scp -i id_rsa -P 2222 \
+            -o StrictHostKeyChecking=no \
+            core@localhost:/tmp/report.sarif \
+            report.sarif
+
+      - name: Stop VM
+        if: always()
+        run: |
+          kill $(cat vm.pid) || true
+
+      - name: Upload SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: report.sarif
