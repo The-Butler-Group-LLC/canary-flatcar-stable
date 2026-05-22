@@ -19,8 +19,7 @@ jobs:
       checks: read
       actions: write
 
-    if: >
-      github.event.pull_request.user.login == 'dependabot[bot]'
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
 
     steps:
       - name: Harden the runner
@@ -48,10 +47,8 @@ jobs:
 
           # Checks to ignore
           EXCLUDED_PATTERNS=(
-            "Dependabot auto-merge"
             "Validate and merge Dependabot PR"
-            "Greetings"
-            "Mark stale issues and pull requests"
+            "Greet First-Time Contributors"
           )
 
           echo "Waiting for checks on commit: $SHA"
